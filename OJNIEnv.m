@@ -230,24 +230,6 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     return result;
 }
 
-- (jobject)getObjectJavaClass:(jobject)obj {
-    if (obj == NULL)
-        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get java class of NULL object"];
-    
-    static jclass javaClass = NULL;
-    static jmethodID getJavaClassMid = NULL;
-    
-    if (javaClass == NULL) {
-        javaClass = [self findClass:@"java/lang/Object"];
-    }
-    
-    if (getJavaClassMid == NULL) {
-        getJavaClassMid = [self getMethodID:javaClass name:@"getClass" signature:@"()Ljava/lang/Class;"];
-    }
-    
-    return [self callObjectMethodOnObject:obj method:getJavaClassMid];
-}
-
 - (jobjectArray)innerJavaObjectArrayFromArray:(NSArray *)array
                                  baseClass:(id)baseClass
                                isPrimitive:(BOOL)isPrimitive
@@ -376,8 +358,10 @@ NEW_ARRAY_METHOD_IMPLEMENTATION(jlongArray, Long)
 NEW_ARRAY_METHOD_IMPLEMENTATION(jfloatArray, Float)
 NEW_ARRAY_METHOD_IMPLEMENTATION(jdoubleArray, Double)
 NEW_ARRAY_METHOD_IMPLEMENTATION(jbooleanArray, Boolean)
+NEW_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, Byte)
 
 - (jfieldID)getFieldID:(jclass)cls name:(NSString *)name signature:(NSString *)signature isStatic:(BOOL)isStatic {
+    Byte
     if (cls == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get field ID of NULL class"];
     else if (name == nil)
@@ -458,6 +442,7 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jlongArray, long, Long)
 GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jfloatArray, float, Float)
 GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jdoubleArray, double, Double)
 GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbooleanArray, bool, Boolean)
+GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
 
 - (NSString *)newStringFromJavaString:(jstring)javaString utf8Encoding:(BOOL)utf8Encoding {
     if (javaString == NULL)
@@ -533,17 +518,20 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbooleanArray, bool, Boolean)
 - (NSString *)getClassNameOfJavaObject:(jobject)javaObject {
     static jmethodID mid = NULL;
     
-    jobject javaClass = [[OJNIEnv sharedEnv] getObjectJavaClass:javaObject];
+    jclass javaClass = [self getObjectClass:javaObject];
     
     if (mid == NULL) {
         jclass jniClass = [self getObjectClass:javaClass];
         
-        mid = [[OJNIEnv sharedEnv] getMethodID:jniClass name:@"getSimpleName" signature:@"()Ljava/lang/String;"];
+        mid = [[OJNIEnv sharedEnv] getMethodID:jniClass name:@"getName" signature:@"()Ljava/lang/String;"];
     }
     
     jobject simpleName = [[OJNIEnv sharedEnv] callObjectMethodOnObject:javaClass method:mid];
     
     NSString *result = [self newStringFromJavaString:simpleName utf8Encoding:YES];
+    
+    // remove package name
+    result = [result substringFromIndex:[result rangeOfString:@"." options:NSBackwardsSearch].location + 1];
     
     return result;
 }

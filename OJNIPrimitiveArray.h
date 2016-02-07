@@ -79,6 +79,12 @@
 #define __OJNI_IDENTIFIER__ @"[Z"
 #include "OJNIPrimitiveArrayTemplate.h"
 
+#define __OJNI_TYPE__ Byte
+#define __OJNI_PTYPE__ char
+#define __OJNI_ARRAY_PTYPE__ jbyteArray
+#define __OJNI_IDENTIFIER__ @"[B"
+#include "OJNIPrimitiveArrayTemplate.h"
+
 /*#define __OJNI_TYPE__ Object
 #define __OJNI_PTYPE__ object
 #include "OJNIPrimitiveArrayTemplate.h"

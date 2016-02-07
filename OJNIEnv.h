@@ -90,7 +90,6 @@ SET_STATIC_FIELD_DECLARATION(jdouble, Double);
 - (void)releaseObject:(jobject)obj;
 - (jclass)findClass:(NSString *)cls;
 - (jclass)getObjectClass:(jobject)obj;
-- (jobject)getObjectJavaClass:(jobject)obj;
 
 - (jmethodID)getMethodID:(jclass)cls name:(NSString *)name signature:(NSString *)signature isStatic:(BOOL)isStatic;
 - (jmethodID)getMethodID:(jclass)cls name:(NSString *)name signature:(NSString *)signature;
@@ -115,6 +114,7 @@ GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jlongArray, long, Long);
 GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jfloatArray, float, Float);
 GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jdoubleArray, double, Double);
 GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jbooleanArray, bool, Boolean);
+GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jbyteArray, char, Byte);
 
 - (jobjectArray)newJavaObjectArrayFromArray:(NSArray *)array
                                   baseClass:(id)baseClass
@@ -132,6 +132,7 @@ NEW_ARRAY_METHOD_DECLARATION(jlongArray, Long);
 NEW_ARRAY_METHOD_DECLARATION(jfloatArray, Float);
 NEW_ARRAY_METHOD_DECLARATION(jdoubleArray, Double);
 NEW_ARRAY_METHOD_DECLARATION(jbooleanArray, Boolean);
+NEW_ARRAY_METHOD_DECLARATION(jbyteArray, Byte);
 
 - (NSString *)newStringFromJavaString:(jstring)javaString utf8Encoding:(BOOL)utf8Encoding;
 - (jstring)newJavaStringFromString:(NSString *)string utf8Encoding:(BOOL)utf8Encoding;
