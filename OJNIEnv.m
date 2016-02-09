@@ -361,7 +361,6 @@ NEW_ARRAY_METHOD_IMPLEMENTATION(jbooleanArray, Boolean)
 NEW_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, Byte)
 
 - (jfieldID)getFieldID:(jclass)cls name:(NSString *)name signature:(NSString *)signature isStatic:(BOOL)isStatic {
-    Byte
     if (cls == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get field ID of NULL class"];
     else if (name == nil)
