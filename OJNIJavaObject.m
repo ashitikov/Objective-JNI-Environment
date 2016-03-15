@@ -22,14 +22,7 @@
 }
 
 + (jclass)OJNIClass {
-/*    static jclass javaClass = NULL;
-    
-    if (javaClass == NULL)
-        javaClass =[[OJNIEnv sharedEnv] findClass:[self.class OJNIClassName]];
-    
-    return javaClass;*/
-    
-    return [[OJNIEnv sharedEnv] findClass:[self.class OJNIClassName]];
+    return [[OJNIEnv currentEnv] findClass:[self.class OJNIClassName]];
 }
 
 - (instancetype)initWithJavaObject:(jobject)obj {
@@ -38,7 +31,7 @@
     if (self) {
         _javaObject = obj;
         
-        [[OJNIEnv sharedEnv] associateJavaObject:obj withObject:self];
+        [[OJNIJavaVM sharedVM] associatePointer:obj withObject:self];
     }
     
     return self;
@@ -48,7 +41,9 @@
     if (obj == NULL)
         return nil;
     
-    OJNIJavaObject *retrieved = [[OJNIEnv sharedEnv] retrieveObjectFromMemoryMapWithJavaObject:obj];
+    OJNIEnv *env = [OJNIEnv currentEnv];
+    
+    OJNIJavaObject *retrieved = [[OJNIJavaVM sharedVM] retrieveObjectFromMemoryMapWithPointer:obj];
     
     if (retrieved != nil)
         return retrieved;
@@ -56,9 +51,9 @@
     Class runtimeClass = NULL;
     
     @try {
-        runtimeClass = [[OJNIEnv sharedEnv] runtimeClassFromJavaObject:obj prefix:classPrefix];
+        runtimeClass = [env runtimeClassFromJavaObject:obj prefix:classPrefix];
     } @catch (NSException *e) {
-        NSLog(@"WARNING! Got an exception while retrieving object from java object %p. Corrupted object? This usual happens while OJNI Environment trying to get class name of object via getClass().getSimpleName() or Objective-C wrapper not found. Check it please. Using runtime OJNIJavaObject instead... Detailed explanation: %@", obj, [e reason]);
+        NSLog(@"WARNING! Got an exception while retrieving object from java object %p. Corrupted object? This usual happens when OJNI Environment trying to get class name of object via getClass().getSimpleName() or Objective-C wrapper not found. Check it please. Using runtime OJNIJavaObject instead... Detailed explanation: %@", obj, [e reason]);
         
         return [[OJNIJavaObject alloc] initWithJavaObject:obj];
     }
@@ -72,12 +67,12 @@
 
 - (BOOL)isEqual:(id)object {
     return self == object || ([object isKindOfClass:[OJNIJavaObject class]] &&
-                              [[OJNIEnv sharedEnv] isJavaObject:[self javaObject] equalToObject:[object javaObject]]);
+                              [[OJNIEnv currentEnv] isJavaObject:[self javaObject] equalToObject:[object javaObject]]);
 }
 
 - (void)dealloc {
     [[OJNIMidManager sharedManager] removeIDSFromClass:self.class];
-    [[OJNIEnv sharedEnv] releaseObject:_javaObject];
+    [[OJNIJavaVM sharedVM] releaseObject:_javaObject];
 }
 
 

@@ -15,7 +15,7 @@
  */
 #import <Foundation/Foundation.h>
 #import "OJNIMidManager.h"
-#import "OJNIEnv.h"
+#import "OJNIJavaVM.h"
 #import "OJNIPrimitiveArray.h"
 
 @protocol OJNIJavaObject <NSObject>

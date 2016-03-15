@@ -19,74 +19,34 @@
 #import "OJNIJavaObject.h"
 
 @interface OJNIEnv () {
-    JavaVM *vm;
     JNIEnv *env;
 }
-
-@property (nonatomic, strong) NSMapTable *memoryMap;
 
 @end
 
 @implementation OJNIEnv
 
-+ (OJNIEnv *)sharedEnv {
-    static OJNIEnv *sharedEnv = nil;
-    
-    @synchronized(self) {
-        if (sharedEnv == nil)
-            sharedEnv = [[self alloc] init];
-    }
-    return sharedEnv;
-}
 
-- (instancetype)init {
+- (instancetype)initWithJNIEnv:(JNIEnv *)jniEnv {
     self = [super init];
     
     if (self) {
-        [self initMemoryMap];
-        [self initJavaVM];
+        env = jniEnv;
     }
     
     return self;
 }
 
-- (void)initMemoryMap {
-    // TODO: discuss
-    NSPointerFunctionsOptions keyOpts = (NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality);
-    NSPointerFunctionsOptions valOpts = (NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality);
-    
-    self.memoryMap = [[NSMapTable alloc] initWithKeyOptions:keyOpts valueOptions:valOpts capacity:16];
+- (JNIEnv *)jniEnv {
+    return env;
 }
 
-- (void)initJavaVM {
-    JavaVMInitArgs vm_args;
-    JavaVMOption options[1];/*
-    options[0].optionString = "-rvm:EnableGCHeapStats";
-    options[1].optionString = "-rvm:ms=8M";
-    options[2].optionString = "-rvm:log=trace";
-    options[3].optionString = "-rvm:mx=16M";*/
-    options[0].optionString = "-rvm:log=trace";
-    
-    vm_args.version = JNI_VERSION_1_2;
-    vm_args.nOptions = 0;
-    vm_args.options = options;
-    vm_args.ignoreUnrecognized = JNI_FALSE;
-    
-    jint result = JNI_CreateJavaVM(&vm, &env, &vm_args);
-    if (result != JNI_OK) {
-        [NSException raise:@"Objective-JNI: JNI_CreateJavaVM() failed" format:@"%d", result];
-    }
++ (instancetype)currentEnv {
+    return [[OJNIJavaVM sharedVM] getEnv];
 }
 
 - (void)releaseObject:(jobject)obj {
-    [self.memoryMap removeObjectForKey:(__bridge id _Nullable)(obj)];
-    
-    (*env)->DeleteLocalRef(env, obj);
     (*env)->DeleteGlobalRef(env, obj);
-}
-
-- (void)dealloc {
-    (*vm)->DestroyJavaVM(vm);
 }
 
 CALL_METHOD_IMPLEMENTATION(jobject, Object)
@@ -502,17 +462,6 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
     return ((*env)->IsSameObject(env, obj1, obj2) == JNI_TRUE);
 }
 
-- (void)associateJavaObject:(jobject)javaObject withObject:(OJNIJavaObject *)object {
-    if (javaObject == NULL)
-        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot associate NULL java object"];
-    
-    [self.memoryMap setObject:object forKey:(__bridge id _Nullable)(javaObject)];
-}
-
-- (OJNIJavaObject *)retrieveObjectFromMemoryMapWithJavaObject:(jobject)javaObject {
-    return [self.memoryMap objectForKey:(__bridge id _Nullable)(javaObject)];
-}
-
 // TODO: REWORK!!!
 - (NSString *)getClassNameOfJavaObject:(jobject)javaObject {
     static jmethodID mid = NULL;
@@ -522,10 +471,10 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
     if (mid == NULL) {
         jclass jniClass = [self getObjectClass:javaClass];
         
-        mid = [[OJNIEnv sharedEnv] getMethodID:jniClass name:@"getName" signature:@"()Ljava/lang/String;"];
+        mid = [self getMethodID:jniClass name:@"getName" signature:@"()Ljava/lang/String;"];
     }
     
-    jobject simpleName = [[OJNIEnv sharedEnv] callObjectMethodOnObject:javaClass method:mid];
+    jobject simpleName = [self callObjectMethodOnObject:javaClass method:mid];
     
     NSString *result = [self newStringFromJavaString:simpleName utf8Encoding:YES];
     

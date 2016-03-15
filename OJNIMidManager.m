@@ -83,7 +83,7 @@
     NSValue *midValue = [storage.mids objectForKey:methodKey];
     
     if (midValue == nil) {
-        jfieldID mid = [[OJNIEnv sharedEnv] getFieldID:[storage classPointer]
+        jfieldID mid = [[OJNIEnv currentEnv] getFieldID:[storage classPointer]
                                                   name:method
                                              signature:signature
                                               isStatic:isStatic];
@@ -105,7 +105,7 @@
 
 - (jmethodID)methodIDForMethod:(NSString *)method signature:(NSString *)signature inClass:(Class)clazz isStatic:(BOOL)isStatic {
     if (![clazz isSubclassOfClass:[OJNIJavaObject class]]) {
-        [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to get methodID for non-java class %@", clazz];
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to get methodID for non-java class %@", clazz];
     }
     
     NSString *key = [clazz OJNIClassName];
@@ -125,7 +125,7 @@
     NSValue *midValue = [storage.mids objectForKey:methodKey];
     
     if (midValue == nil) {
-        jmethodID mid = [[OJNIEnv sharedEnv] getMethodID:[storage classPointer]
+        jmethodID mid = [[OJNIEnv currentEnv] getMethodID:[storage classPointer]
                                                     name:method
                                                signature:signature
                                                 isStatic:isStatic];
@@ -148,7 +148,7 @@
     if (storage == nil) {
         storage = [[OJNIClassStorage alloc] init];
         
-        [storage setClassPointer:[[OJNIEnv sharedEnv] findClass:name]];
+        [storage setClassPointer:[[OJNIEnv currentEnv] findClass:name]];
         [storage setMids:[[NSMutableDictionary alloc] init]];
         
         [self setObject:storage forKey:name];
@@ -159,7 +159,7 @@
 
 - (void)removeIDSFromClass:(Class)clazz {
     if (![clazz isSubclassOfClass:[OJNIJavaObject class]]) {
-        [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to remove IDS for non-java class %@", clazz];
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to remove IDS for non-java class %@", clazz];
     }
     
     NSString *key = [clazz OJNIClassName];

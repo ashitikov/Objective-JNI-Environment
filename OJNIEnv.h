@@ -22,7 +22,10 @@
 
 @interface OJNIEnv : NSObject
 
-+ (OJNIEnv *)sharedEnv;
+- (instancetype)initWithJNIEnv:(JNIEnv *)jniEnv;
+- (JNIEnv *)jniEnv;
+
++ (instancetype)currentEnv;
 
 CALL_METHOD_DECLARATION(jobject, Object);
 CALL_METHOD_DECLARATION(jboolean, Boolean);
@@ -103,8 +106,6 @@ SET_STATIC_FIELD_DECLARATION(jdouble, Double);
 
 - (NSString *)getClassNameOfJavaObject:(jobject)javaObject;
 - (Class)runtimeClassFromJavaObject:(jobject)javaObject prefix:(NSString *)prefix;
-- (OJNIJavaObject *)retrieveObjectFromMemoryMapWithJavaObject:(jobject)javaObject;
-- (void)associateJavaObject:(jobject)javaObject withObject:(OJNIJavaObject *)object;
 - (BOOL)isJavaObject:(jobject)obj1 equalToObject:(jobject)obj2;
 
 GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jintArray, int, Int);

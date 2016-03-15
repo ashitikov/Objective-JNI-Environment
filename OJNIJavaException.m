@@ -39,35 +39,22 @@
 }
 
 + (NSString *)nameOfThrowable:(jthrowable)throwable {
-    return [[OJNIEnv sharedEnv] getClassNameOfJavaObject:throwable];
-    /*
-    jclass objectClass = [[OJNIEnv sharedEnv] getObjectClass:throwable];
-    jmethodID getClassMethod = [[OJNIEnv sharedEnv] getMethodID:objectClass
-                                                           name:@"getClass"
-                                                      signature:@"()Ljava/lang/Class;"];
-    
-    jobject throwableJavaClassObject = [[OJNIEnv sharedEnv] callObjectMethodOnObject:throwable method:getClassMethod];
-    jclass throwableJavaClassObjectClass = [[OJNIEnv sharedEnv] getObjectClass:throwableJavaClassObject];
-    
-    jmethodID getClassNameMethod = [[OJNIEnv sharedEnv] getMethodID:throwableJavaClassObjectClass name:@"getName" signature:@"()Ljava/lang/String;"];
-    
-    jobject throwableJavaNameString = [[OJNIEnv sharedEnv] callObjectMethodOnObject:throwableJavaClassObject method:getClassNameMethod];
-    
-   return [[OJNIEnv sharedEnv] newStringFromJavaString:throwableJavaNameString utf8Encoding:NO];*/
+    return [[OJNIEnv currentEnv] getClassNameOfJavaObject:throwable];
 }
 
 + (NSString *)reasonOfThrowable:(jthrowable)throwable {
-    jclass objectClass = [[OJNIEnv sharedEnv] getObjectClass:throwable];
-    jmethodID getLocalizedMessageMethod = [[OJNIEnv sharedEnv] getMethodID:objectClass
+    OJNIEnv *env = [OJNIEnv currentEnv];
+    jclass objectClass = [env getObjectClass:throwable];
+    jmethodID getLocalizedMessageMethod = [env getMethodID:objectClass
                                                                       name:@"getLocalizedMessage"
                                                                  signature:@"()Ljava/lang/String;"];
     
-    jobject localizedMessageObject = [[OJNIEnv sharedEnv] callObjectMethodOnObject:throwable method:getLocalizedMessageMethod];
+    jobject localizedMessageObject = [env callObjectMethodOnObject:throwable method:getLocalizedMessageMethod];
     
     if (localizedMessageObject == NULL)
         return nil;
     
-    return [[OJNIEnv sharedEnv] newStringFromJavaString:localizedMessageObject utf8Encoding:NO];
+    return [env newStringFromJavaString:localizedMessageObject utf8Encoding:NO];
 }
 
 // TODO: rework
@@ -75,41 +62,43 @@
     static jclass stringWriterClass = NULL;
     static jclass printWriterClass = NULL;
     
+    OJNIEnv *env = [OJNIEnv currentEnv];
+    
     if (stringWriterClass == NULL)
-        stringWriterClass = [[OJNIEnv sharedEnv] findClass:@"java/io/StringWriter"];
+        stringWriterClass = [env findClass:@"java/io/StringWriter"];
     
     if (printWriterClass == NULL)
-        printWriterClass = [[OJNIEnv sharedEnv] findClass:@"java/io/PrintWriter"];
+        printWriterClass = [env findClass:@"java/io/PrintWriter"];
     
-    jmethodID stringWriterConstructorMid = [[OJNIEnv sharedEnv] getMethodID:stringWriterClass name:@"<init>" signature:@"()V"];
+    jmethodID stringWriterConstructorMid = [env getMethodID:stringWriterClass name:@"<init>" signature:@"()V"];
     
-    jobject stringWriterObject = [[OJNIEnv sharedEnv] newObject:stringWriterClass method:stringWriterConstructorMid];
+    jobject stringWriterObject = [env newObject:stringWriterClass method:stringWriterConstructorMid];
     
-    jmethodID printWriterConstructorMid = [[OJNIEnv sharedEnv] getMethodID:printWriterClass name:@"<init>" signature:@"(Ljava/io/Writer;)V"];
+    jmethodID printWriterConstructorMid = [env getMethodID:printWriterClass name:@"<init>" signature:@"(Ljava/io/Writer;)V"];
     
-    jobject printWriterObject = [[OJNIEnv sharedEnv] newObject:printWriterClass method:printWriterConstructorMid, stringWriterObject];
+    jobject printWriterObject = [env newObject:printWriterClass method:printWriterConstructorMid, stringWriterObject];
     
     /// PrintWriter Constructed. Then print in it
     
-    jclass objectClass = [[OJNIEnv sharedEnv] getObjectClass:throwable];
-    jmethodID printStackTraceMid = [[OJNIEnv sharedEnv] getMethodID:objectClass name:@"printStackTrace" signature:@"(Ljava/io/PrintWriter;)V"];
+    jclass objectClass = [env getObjectClass:throwable];
+    jmethodID printStackTraceMid = [env getMethodID:objectClass name:@"printStackTrace" signature:@"(Ljava/io/PrintWriter;)V"];
     
-    [[OJNIEnv sharedEnv] callVoidMethodOnObject:throwable method:printStackTraceMid, printWriterObject];
+    [env callVoidMethodOnObject:throwable method:printStackTraceMid, printWriterObject];
     
     /// Close printwriter
-    jmethodID closePrintWriterMid = [[OJNIEnv sharedEnv] getMethodID:printWriterClass name:@"close" signature:@"()V"];
-    [[OJNIEnv sharedEnv] callVoidMethodOnObject:printWriterObject method:closePrintWriterMid];
+    jmethodID closePrintWriterMid = [env getMethodID:printWriterClass name:@"close" signature:@"()V"];
+    [[OJNIEnv currentEnv] callVoidMethodOnObject:printWriterObject method:closePrintWriterMid];
     
-    jmethodID toStringStringWriterMid = [[OJNIEnv sharedEnv] getMethodID:stringWriterClass name:@"toString" signature:@"()Ljava/lang/String;"];
+    jmethodID toStringStringWriterMid = [env getMethodID:stringWriterClass name:@"toString" signature:@"()Ljava/lang/String;"];
     
-    jobject stackTrace = [[OJNIEnv sharedEnv] callObjectMethodOnObject:stringWriterObject method:toStringStringWriterMid];
+    jobject stackTrace = [env callObjectMethodOnObject:stringWriterObject method:toStringStringWriterMid];
  
-    NSString *result = [[OJNIEnv sharedEnv] newStringFromJavaString:stackTrace utf8Encoding:NO];
+    NSString *result = [env newStringFromJavaString:stackTrace utf8Encoding:NO];
     
     /// release streams
     
-    [[OJNIEnv sharedEnv] releaseObject:printWriterObject];
-    [[OJNIEnv sharedEnv] releaseObject:stringWriterObject];
+    [[OJNIJavaVM sharedVM] releaseObject:printWriterObject];
+    [[OJNIJavaVM sharedVM] releaseObject:stringWriterObject];
     
     return result;
 }

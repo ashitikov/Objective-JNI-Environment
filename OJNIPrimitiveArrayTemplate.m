@@ -82,7 +82,7 @@ CONCAT3_NAMES(- (instancetype)initWithPrimitive, __OJNI_TYPE__, Array):(CONCAT3_
 }
 
 - (instancetype)initWithJavaArray:(jarray)javaArray {
-    return [[OJNIEnv sharedEnv] CONCAT3_NAMES(primitive, __OJNI_TYPE__, ArrayFromJavaArray):javaArray];
+    return [[OJNIEnv currentEnv] CONCAT3_NAMES(primitive, __OJNI_TYPE__, ArrayFromJavaArray):javaArray];
 }
 
 CONCAT3_NAMES(+ (instancetype)arrayWith, __OJNI_TYPE__, Array):(__OJNI_PTYPE__ *)array length:(int)length {
@@ -134,7 +134,7 @@ CONCAT2_NAMES(- (void)set, __OJNI_TYPE__):(__OJNI_PTYPE__)value atIndex:(int)ind
 }
 
 - (jarray)javaArray {
-    return [[OJNIEnv sharedEnv] CONCAT3_NAMES(newJava, __OJNI_TYPE__, ArrayFromArray):self];
+    return [[OJNIEnv currentEnv] CONCAT3_NAMES(newJava, __OJNI_TYPE__, ArrayFromArray):self];
 }
 
 + (NSString *)javaArrayIdentifier {

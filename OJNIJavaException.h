@@ -15,7 +15,7 @@
  */
 #import <Foundation/Foundation.h>
 
-#import "OJNIEnv.h"
+#import "OJNIJavaVM.h"
 
 /// Exceptions are a bit slow now, and not recommended to use
 @interface OJNIJavaException : NSException {
