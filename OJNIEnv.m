@@ -46,10 +46,10 @@
 }
 
 - (void)releaseObject:(jobject)obj {
+    (*env)->DeleteLocalRef(env, obj);
     (*env)->DeleteGlobalRef(env, obj);
 }
 
-CALL_METHOD_IMPLEMENTATION(jobject, Object)
 CALL_METHOD_IMPLEMENTATION(jboolean, Boolean)
 CALL_METHOD_IMPLEMENTATION(jbyte, Byte)
 CALL_METHOD_IMPLEMENTATION(jchar, Char)
@@ -59,7 +59,6 @@ CALL_METHOD_IMPLEMENTATION(jlong, Long)
 CALL_METHOD_IMPLEMENTATION(jfloat, Float)
 CALL_METHOD_IMPLEMENTATION(jdouble, Double)
 
-CALL_STATIC_METHOD_IMPLEMENTATION(jobject, Object)
 CALL_STATIC_METHOD_IMPLEMENTATION(jboolean, Boolean)
 CALL_STATIC_METHOD_IMPLEMENTATION(jbyte, Byte)
 CALL_STATIC_METHOD_IMPLEMENTATION(jchar, Char)
@@ -124,6 +123,47 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     [self reportException];
 }
 
+- (jobject)callObjectMethodOnObject:(jobject)obj method:(jmethodID)mid, ... {
+    if (obj == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot call method on NULL object"];
+    else if (mid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot call NULL method"];
+    va_list ap;
+    
+    jobject result;
+    va_start(ap, mid);
+    result = (*env)->CallObjectMethodV(env, obj, mid, ap);
+    va_end(ap);
+    
+    [self reportException];
+    
+    result = (*env)->NewGlobalRef(env, result);
+    (*env)->DeleteLocalRef(env, result);
+    
+    return result;
+}
+
+- (jobject)callStaticObjectMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
+    if (cls == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot call statoc method on NULL class"];
+    else if (mid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot call NULL method"];
+    
+    va_list ap;
+    
+    jobject result;
+    va_start(ap, mid);
+    result = (*env)->CallStaticObjectMethodV(env, cls, mid, ap);
+    va_end(ap);
+    
+    [self reportException];
+    
+    result = (*env)->NewGlobalRef(env, result);
+    (*env)->DeleteLocalRef(env, result);
+    
+    return result;
+}
+
 - (void)callStaticVoidMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
     if (cls == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot call static method on NULL class"];
@@ -156,7 +196,8 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Object with class %p and method %p creation failed", cls, mid];
     
-    (*env)->NewGlobalRef(env, result);
+    result = (*env)->NewGlobalRef(env, result);
+    (*env)->DeleteLocalRef(env, result);
     
     va_end(ap);
     
@@ -175,6 +216,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to find class %@", cls];
     
+    result = (*env)->NewGlobalRef(env, result);
+    (*env)->DeleteLocalRef(env, result);
+    
     return result;
 }
 
@@ -186,6 +230,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     result = (*env)->GetObjectClass(env, obj);
     
     [self reportException];
+    
+    result = (*env)->NewGlobalRef(env, result);
+    (*env)->DeleteLocalRef(env, result);
     
     return result;
 }
@@ -242,7 +289,6 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
                                   baseClass:(id)baseClass
                                  dimensions:(int)dimensions {
     jobjectArray result;
-    Class a = [array class];
     
     BOOL primitive = (![baseClass isKindOfClass:[NSString class]] &&
                       [baseClass isSubclassOfClass:[OJNIPrimitiveArray class]]);
@@ -453,6 +499,8 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
         free(chars);
     }
     
+    // TODO Fix String reference
+    
     [self reportException];
     
     return result;
@@ -472,9 +520,13 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
         jclass jniClass = [self getObjectClass:javaClass];
         
         mid = [self getMethodID:jniClass name:@"getName" signature:@"()Ljava/lang/String;"];
+        
+        [self releaseObject:jniClass];
     }
     
     jobject simpleName = [self callObjectMethodOnObject:javaClass method:mid];
+    
+    [self releaseObject:javaClass];
     
     NSString *result = [self newStringFromJavaString:simpleName utf8Encoding:YES];
     

@@ -51,6 +51,8 @@
     
     jobject localizedMessageObject = [env callObjectMethodOnObject:throwable method:getLocalizedMessageMethod];
     
+    [env releaseObject:objectClass];
+    
     if (localizedMessageObject == NULL)
         return nil;
     
@@ -87,7 +89,7 @@
     
     /// Close printwriter
     jmethodID closePrintWriterMid = [env getMethodID:printWriterClass name:@"close" signature:@"()V"];
-    [[OJNIEnv currentEnv] callVoidMethodOnObject:printWriterObject method:closePrintWriterMid];
+    [env callVoidMethodOnObject:printWriterObject method:closePrintWriterMid];
     
     jmethodID toStringStringWriterMid = [env getMethodID:stringWriterClass name:@"toString" signature:@"()Ljava/lang/String;"];
     
@@ -96,7 +98,7 @@
     NSString *result = [env newStringFromJavaString:stackTrace utf8Encoding:NO];
     
     /// release streams
-    
+    [env releaseObject:objectClass];
     [[OJNIJavaVM sharedVM] releaseObject:printWriterObject];
     [[OJNIJavaVM sharedVM] releaseObject:stringWriterObject];
     
