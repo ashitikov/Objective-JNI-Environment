@@ -39,7 +39,7 @@
 }
 
 + (NSString *)nameOfThrowable:(jthrowable)throwable {
-    return [[OJNIEnv currentEnv] getClassNameOfJavaObject:throwable];
+    return [[OJNIEnv currentEnv] getClassNameOfJavaObject:throwable removePackage:YES];
 }
 
 + (NSString *)reasonOfThrowable:(jthrowable)throwable {

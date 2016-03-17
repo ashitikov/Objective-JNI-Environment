@@ -25,7 +25,7 @@
 
 - (instancetype)initWithJavaObject:(jobject)obj;
 - (jobject)javaObject;
-+ (instancetype)retrieveFromJavaObject:(jobject)obj classPrefix:(NSString *)classPrefix;
++ (id)retrieveFromJavaObject:(jobject)obj classPrefix:(NSString *)classPrefix;
 
 @end
 
