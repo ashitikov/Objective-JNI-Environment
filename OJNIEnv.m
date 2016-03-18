@@ -68,7 +68,7 @@ CALL_STATIC_METHOD_IMPLEMENTATION(jlong, Long)
 CALL_STATIC_METHOD_IMPLEMENTATION(jfloat, Float)
 CALL_STATIC_METHOD_IMPLEMENTATION(jdouble, Double)
 
-GET_FIELD_IMPLEMENTATION(jobject, Object)
+//GET_FIELD_IMPLEMENTATION(jobject, Object)
 GET_FIELD_IMPLEMENTATION(jboolean, Boolean)
 GET_FIELD_IMPLEMENTATION(jbyte, Byte)
 GET_FIELD_IMPLEMENTATION(jchar, Char)
@@ -88,7 +88,7 @@ SET_FIELD_IMPLEMENTATION(jlong, Long)
 SET_FIELD_IMPLEMENTATION(jfloat, Float)
 SET_FIELD_IMPLEMENTATION(jdouble, Double)
 
-GET_STATIC_FIELD_IMPLEMENTATION(jobject, Object)
+//GET_STATIC_FIELD_IMPLEMENTATION(jobject, Object)
 GET_STATIC_FIELD_IMPLEMENTATION(jboolean, Boolean)
 GET_STATIC_FIELD_IMPLEMENTATION(jbyte, Byte)
 GET_STATIC_FIELD_IMPLEMENTATION(jchar, Char)
@@ -107,6 +107,36 @@ SET_STATIC_FIELD_IMPLEMENTATION(jint, Int)
 SET_STATIC_FIELD_IMPLEMENTATION(jlong, Long)
 SET_STATIC_FIELD_IMPLEMENTATION(jfloat, Float)
 SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
+
+- (jobject)getObjectField:(jobject)obj field:(jfieldID)fid {
+    if (obj == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get field of NULL object"];
+    else if (fid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get NULL field"];
+    
+    jobject result = (*env)->GetObjectField(env, obj, fid);
+    
+    [self reportException];
+    
+    GLOBALIZE(result)
+    
+    return __global;
+}
+
+- (jobject)getStaticObjectField:(jobject)obj field:(jfieldID)fid {
+    if (obj == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get static field of NULL object"];
+    else if (fid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get static NULL field"];
+    
+    jobject result = (*env)->GetStaticObjectField(env, obj, fid);
+    
+    [self reportException];
+    
+    GLOBALIZE(result)
+    
+    return __global;
+}
 
 - (void)callVoidMethodOnObject:(jobject)obj method:(jmethodID)mid, ... {
     if (obj == NULL)
@@ -137,10 +167,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (jobject)callStaticObjectMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
@@ -158,10 +187,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (void)callStaticVoidMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
@@ -196,12 +224,11 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Object with class %p and method %p creation failed", cls, mid];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
-    
     va_end(ap);
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (jclass)findClass:(NSString *)cls {
@@ -216,10 +243,11 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to find class %@", cls];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    // TODO check release object
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (jclass)getObjectClass:(jobject)obj {
@@ -231,10 +259,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (jobjectArray)innerJavaObjectArrayFromArray:(NSArray *)array
@@ -497,11 +524,13 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
         free(chars);
     }
     
-    // TODO Fix String reference
+    // TODO fix string references
     
     [self reportException];
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (BOOL)isJavaObject:(jobject)obj1 equalToObject:(jobject)obj2 {
@@ -549,14 +578,12 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
     NSString *result = [self newStringFromJavaString:simpleName utf8Encoding:YES];
     
     if (removePackage)
-    result = [self classNameWithoutPackage:result];
+        result = [self classNameWithoutPackage:result];
     
     return result;
 }
 
 - (NSString *)getClassNameOfJavaObject:(jobject)javaObject removePackage:(BOOL)removePackage {
-    static jmethodID mid = NULL;
-    
     jclass javaClass = [self getObjectClass:javaObject];
     
     return [self getClassNameOfJavaClass:javaClass removePackage:removePackage];
@@ -582,9 +609,15 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
         jclass jniClass = [self getObjectClass:javaClass];
         
         mid = [self getMethodID:jniClass name:@"isArray" signature:@"()Z"];
+        
+        [self releaseObject:jniClass];
     }
     
-    return ([self callBooleanMethodOnObject:javaClass method:mid] == JNI_TRUE);
+    BOOL result = ([self callBooleanMethodOnObject:javaClass method:mid] == JNI_TRUE);
+    
+    [self releaseObject:javaClass];
+    
+    return result;
 }
 
 - (Class)runtimeClassFromJavaObject:(jobject)javaObject prefix:(NSString *)prefix {
