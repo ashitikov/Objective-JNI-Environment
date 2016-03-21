@@ -16,11 +16,8 @@
 
 + (instancetype)sharedVM;
 
-- (void)initializeJVMWithArgs:(JavaVMInitArgs)args;
+- (void)initializeJVMWithArgs:(NSArray <NSString *> *)args;
 - (void)initializeJVM;
-
-- (OJNIEnv *)attachCurrentThread;
-- (void)detachCurrentThread:(OJNIEnv *)env;
 
 - (void)associatePointer:(void *)pointer withObject:(id)object;
 - (id)retrieveObjectFromMemoryMapWithPointer:(void *)pointer;

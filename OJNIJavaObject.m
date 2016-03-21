@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #import "OJNIJavaObject.h"
+#import "OJNIArrayInfo.h"
 
 @implementation OJNIJavaObject
 
@@ -37,7 +38,7 @@
     return self;
 }
 
-+ (instancetype)retrieveFromJavaObject:(jobject)obj classPrefix:(NSString *)classPrefix {
++ (id)retrieveFromJavaObject:(jobject)obj classPrefix:(NSString *)classPrefix {
     if (obj == NULL)
         return nil;
     
@@ -48,17 +49,25 @@
     if (retrieved != nil)
         return retrieved;
     
-    Class runtimeClass = NULL;
-    
     @try {
-        runtimeClass = [env runtimeClassFromJavaObject:obj prefix:classPrefix];
+        if ([env isJavaObjectArray:obj]) {
+            OJNIArrayInfo *info = [OJNIArrayInfo arrayInfoFromJavaArray:obj environment:env prefix:classPrefix];
+            
+            if (info.dimensions > 1 || !info.isPrimitive) {
+                return [env newArrayFromJavaObjectArray:obj baseClass:info.componentType classPrefix:classPrefix dimensions:(int)info.dimensions];
+            } else {
+                return [[info.componentType alloc] initWithJavaArray:obj];
+            }
+        }
+        
+        Class runtimeClass = [env runtimeClassFromJavaObject:obj prefix:classPrefix];
+        
+        return [[runtimeClass alloc] initWithJavaObject:obj];
     } @catch (NSException *e) {
-        NSLog(@"WARNING! Got an exception while retrieving object from java object %p. Corrupted object? This usual happens when OJNI Environment trying to get class name of object via getClass().getSimpleName() or Objective-C wrapper not found. Check it please. Using runtime OJNIJavaObject instead... Detailed explanation: %@", obj, [e reason]);
+        NSLog(@"WARNING! Got an exception while retrieving object from java object %p. Corrupted object? This usual happens when OJNI Environment trying to get class name of object via getClass().getName() or Objective-C wrapper not found. Check it please. Using runtime OJNIJavaObject instead... Detailed explanation: %@", obj, [e reason]);
         
         return [[OJNIJavaObject alloc] initWithJavaObject:obj];
     }
-    
-    return [[runtimeClass alloc] initWithJavaObject:obj];
 }
 
 - (jobject)javaObject {

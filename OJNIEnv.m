@@ -32,6 +32,8 @@
     
     if (self) {
         env = jniEnv;
+        
+        [[OJNIJavaVM sharedVM] associatePointer:env withObject:self];
     }
     
     return self;
@@ -68,7 +70,7 @@ CALL_STATIC_METHOD_IMPLEMENTATION(jlong, Long)
 CALL_STATIC_METHOD_IMPLEMENTATION(jfloat, Float)
 CALL_STATIC_METHOD_IMPLEMENTATION(jdouble, Double)
 
-GET_FIELD_IMPLEMENTATION(jobject, Object)
+//GET_FIELD_IMPLEMENTATION(jobject, Object)
 GET_FIELD_IMPLEMENTATION(jboolean, Boolean)
 GET_FIELD_IMPLEMENTATION(jbyte, Byte)
 GET_FIELD_IMPLEMENTATION(jchar, Char)
@@ -88,7 +90,7 @@ SET_FIELD_IMPLEMENTATION(jlong, Long)
 SET_FIELD_IMPLEMENTATION(jfloat, Float)
 SET_FIELD_IMPLEMENTATION(jdouble, Double)
 
-GET_STATIC_FIELD_IMPLEMENTATION(jobject, Object)
+//GET_STATIC_FIELD_IMPLEMENTATION(jobject, Object)
 GET_STATIC_FIELD_IMPLEMENTATION(jboolean, Boolean)
 GET_STATIC_FIELD_IMPLEMENTATION(jbyte, Byte)
 GET_STATIC_FIELD_IMPLEMENTATION(jchar, Char)
@@ -107,6 +109,36 @@ SET_STATIC_FIELD_IMPLEMENTATION(jint, Int)
 SET_STATIC_FIELD_IMPLEMENTATION(jlong, Long)
 SET_STATIC_FIELD_IMPLEMENTATION(jfloat, Float)
 SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
+
+- (jobject)getObjectField:(jobject)obj field:(jfieldID)fid {
+    if (obj == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get field of NULL object"];
+    else if (fid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get NULL field"];
+    
+    jobject result = (*env)->GetObjectField(env, obj, fid);
+    
+    [self reportException];
+    
+    GLOBALIZE(result)
+    
+    return __global;
+}
+
+- (jobject)getStaticObjectField:(jobject)obj field:(jfieldID)fid {
+    if (obj == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get static field of NULL object"];
+    else if (fid == NULL)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get static NULL field"];
+    
+    jobject result = (*env)->GetStaticObjectField(env, obj, fid);
+    
+    [self reportException];
+    
+    GLOBALIZE(result)
+    
+    return __global;
+}
 
 - (void)callVoidMethodOnObject:(jobject)obj method:(jmethodID)mid, ... {
     if (obj == NULL)
@@ -137,10 +169,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (jobject)callStaticObjectMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
@@ -158,10 +189,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (void)callStaticVoidMethodOnClass:(jclass)cls method:(jmethodID)mid, ... {
@@ -196,12 +226,11 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Object with class %p and method %p creation failed", cls, mid];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
-    
     va_end(ap);
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (jclass)findClass:(NSString *)cls {
@@ -216,10 +245,11 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     if (result == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Failed to find class %@", cls];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    // TODO check release object
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (jclass)getObjectClass:(jobject)obj {
@@ -231,10 +261,9 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     [self reportException];
     
-    result = (*env)->NewGlobalRef(env, result);
-    (*env)->DeleteLocalRef(env, result);
+    GLOBALIZE(result)
     
-    return result;
+    return __global;
 }
 
 - (jobjectArray)innerJavaObjectArrayFromArray:(NSArray *)array
@@ -283,7 +312,6 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     return result;
 }
-
 
 - (jobjectArray)newJavaObjectArrayFromArray:(NSArray *)array
                                   baseClass:(id)baseClass
@@ -479,7 +507,6 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
     return result;
 }
 
-
 - (jstring)newJavaStringFromString:(NSString *)string utf8Encoding:(BOOL)utf8Encoding {
     jstring result = NULL;
     
@@ -499,22 +526,44 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
         free(chars);
     }
     
-    // TODO Fix String reference
+    // TODO fix string references
     
     [self reportException];
     
-    return result;
+    GLOBALIZE(result)
+    
+    return __global;
 }
 
 - (BOOL)isJavaObject:(jobject)obj1 equalToObject:(jobject)obj2 {
     return ((*env)->IsSameObject(env, obj1, obj2) == JNI_TRUE);
 }
 
-// TODO: REWORK!!!
-- (NSString *)getClassNameOfJavaObject:(jobject)javaObject {
+- (NSString *)getComponentTypeClassNameOfArray:(jarray)javaArray {
     static jmethodID mid = NULL;
     
-    jclass javaClass = [self getObjectClass:javaObject];
+    jclass javaClass = [self getObjectClass:javaArray];
+    
+    if (mid == NULL) {
+        jclass jniClass = [self getObjectClass:javaClass];
+        
+        mid = [self getMethodID:jniClass name:@"getComponentType" signature:@"()Ljava/lang/Class;"];
+        
+        [self releaseObject:jniClass];
+    }
+    
+    jclass componentClass = [self callObjectMethodOnObject:javaClass method:mid];
+    
+    NSString *result = [self getClassNameOfJavaClass:componentClass removePackage:NO];
+    
+    [self releaseObject:componentClass];
+    
+    return result;
+}
+
+// TODO: REWORK!!!
+- (NSString *)getClassNameOfJavaClass:(jclass)javaClass removePackage:(BOOL)removePackage {
+    static jmethodID mid = NULL;
     
     if (mid == NULL) {
         jclass jniClass = [self getObjectClass:javaClass];
@@ -530,24 +579,67 @@ GET_PRIMITIVE_ARRAY_METHOD_IMPLEMENTATION(jbyteArray, char, Byte)
     
     NSString *result = [self newStringFromJavaString:simpleName utf8Encoding:YES];
     
+    if (removePackage)
+        result = [self classNameWithoutPackage:result];
+    
+    return result;
+}
+
+- (NSString *)getClassNameOfJavaObject:(jobject)javaObject removePackage:(BOOL)removePackage {
+    jclass javaClass = [self getObjectClass:javaObject];
+    
+    return [self getClassNameOfJavaClass:javaClass removePackage:removePackage];
+}
+
+- (NSString *)classNameWithoutPackage:(NSString *)className {
+    NSUInteger location = [className rangeOfString:@"." options:NSBackwardsSearch].location;
+    
+    if (location == NSNotFound) {
+        return className;
+    }
+    
     // remove package name
-    result = [result substringFromIndex:[result rangeOfString:@"." options:NSBackwardsSearch].location + 1];
+    return [className substringFromIndex:location + 1];
+}
+
+- (BOOL)isJavaObjectArray:(jobject)javaObject {
+    static jmethodID mid = NULL;
+    
+    jclass javaClass = [self getObjectClass:javaObject];
+    
+    if (mid == NULL) {
+        jclass jniClass = [self getObjectClass:javaClass];
+        
+        mid = [self getMethodID:jniClass name:@"isArray" signature:@"()Z"];
+        
+        [self releaseObject:jniClass];
+    }
+    
+    BOOL result = ([self callBooleanMethodOnObject:javaClass method:mid] == JNI_TRUE);
+    
+    [self releaseObject:javaClass];
     
     return result;
 }
 
 - (Class)runtimeClassFromJavaObject:(jobject)javaObject prefix:(NSString *)prefix {
-    NSString *className = [self getClassNameOfJavaObject:javaObject];
+    NSString *className = [self getClassNameOfJavaObject:javaObject removePackage:YES];
     
     if (className == nil)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot get class name of java object %p", javaObject];
     
+    Class resultClass = [self runtimeClassFromJavaClassName:className prefix:prefix];
+    
+    if (resultClass == nil)
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Runtime class getting failed for object %p with java object's classname %@", javaObject, className];
+    
+    return resultClass;
+}
+
+- (Class)runtimeClassFromJavaClassName:(NSString *)className prefix:(NSString *)prefix {
     NSString *result = [prefix stringByAppendingString:className];
     
     Class resultClass = NSClassFromString(result);
-    
-    if (resultClass == nil)
-        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Runtime class getting failed for object %p with Objective-C wrapper classname %@", javaObject, result];
     
     return resultClass;
 }

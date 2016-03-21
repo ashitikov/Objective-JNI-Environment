@@ -151,4 +151,8 @@ GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jtypearray, ptype, Type) {               
     return [OJNIPrimitive##Type##Array arrayWith##Type##ArrayNoCopy:arr length:length freeWhenDone:YES];    \
 }
 
+#define GLOBALIZE(localReference) \
+    jobject __global = (*env)->NewGlobalRef(env, localReference); \
+    (*env)->DeleteLocalRef(env, localReference);
+
 #endif /* OJNIEnvHelper_h */

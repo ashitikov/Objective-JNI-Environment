@@ -104,8 +104,10 @@ SET_STATIC_FIELD_DECLARATION(jdouble, Double);
 
 - (jsize)lengthOfArray:(jarray)array;
 
-- (NSString *)getClassNameOfJavaObject:(jobject)javaObject;
+- (NSString *)getComponentTypeClassNameOfArray:(jarray)javaArray;
+- (NSString *)getClassNameOfJavaObject:(jobject)javaObject removePackage:(BOOL)removePackage;
 - (Class)runtimeClassFromJavaObject:(jobject)javaObject prefix:(NSString *)prefix;
+- (Class)runtimeClassFromJavaClassName:(NSString *)className prefix:(NSString *)prefix;
 - (BOOL)isJavaObject:(jobject)obj1 equalToObject:(jobject)obj2;
 
 GET_PRIMITIVE_ARRAY_METHOD_DECLARATION(jintArray, int, Int);
@@ -137,5 +139,7 @@ NEW_ARRAY_METHOD_DECLARATION(jbyteArray, Byte);
 
 - (NSString *)newStringFromJavaString:(jstring)javaString utf8Encoding:(BOOL)utf8Encoding;
 - (jstring)newJavaStringFromString:(NSString *)string utf8Encoding:(BOOL)utf8Encoding;
+
+- (BOOL)isJavaObjectArray:(jobject)javaObject;
 
 @end
