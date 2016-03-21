@@ -9,6 +9,8 @@
 #import "OJNIJavaVM.h"
 #import "OJNIEnvironmentException.h"
 
+#import <pthread.h>
+
 @interface OJNIJavaVM ()
 
 @property BOOL isInitialized;
@@ -33,31 +35,43 @@
     return sharedVM;
 }
 
-- (void)initializeJVMWithArgs:(JavaVMInitArgs)args {
+- (void)initializeJVMWithArgs:(NSArray<NSString *> *)args {
     JNIEnv *env;
+
+    JavaVMInitArgs *parsed = [self vmArgsFromArray:args];
     
-    jint result = JNI_CreateJavaVM(&vm, &env, &args);
+    jint result = JNI_CreateJavaVM(&vm, &env, parsed);
     if (result != JNI_OK) {
-        [OJNIEnvironmentException pointerExceptionWithReason:@"JavaVM creation failed"];
+        @throw [OJNIEnvironmentException pointerExceptionWithReason:@"JavaVM creation failed"];
     } else {
         self.isInitialized = YES;
         
         [self initMemoryMap];
         self.mainThreadEnv = [[OJNIEnv alloc] initWithJNIEnv:env];
     }
+    
+    free(parsed->options);
+    free(parsed);
+}
+
+- (JavaVMInitArgs *)vmArgsFromArray:(NSArray<NSString *> *)array {
+    JavaVMInitArgs *vm_args = malloc(sizeof(JavaVMInitArgs));
+    JavaVMOption *options = malloc(array.count * sizeof(JavaVMOption));
+    
+    for (NSInteger i = 0; i < array.count; i++) {
+        options[i].optionString = (char *)[array[i] cStringUsingEncoding:NSUTF8StringEncoding];
+    }
+    
+    vm_args->nOptions = (int)array.count;
+    vm_args->version = JNI_VERSION_1_2;
+    vm_args->ignoreUnrecognized = JNI_FALSE;
+    vm_args->options = options;
+    
+    return vm_args;
 }
 
 - (void)initializeJVM {
-    JavaVMInitArgs vm_args;
-    JavaVMOption options[1];
-    options[0].optionString = "-rvm:log=error";
-    
-    vm_args.version = JNI_VERSION_1_2;
-    vm_args.nOptions = 1;
-    vm_args.options = options;
-    vm_args.ignoreUnrecognized = JNI_FALSE;
-    
-    [self initializeJVMWithArgs:vm_args];
+    [self initializeJVMWithArgs:@[@"-rvm:log=error"]];
 }
 
 - (void)initMemoryMap {
@@ -84,13 +98,28 @@
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"JavaVM thread attaching failed"];
     }
     
-    return [[OJNIEnv alloc] initWithJNIEnv:env];
+    OJNIEnv *retrieved = [self retrieveObjectFromMemoryMapWithPointer:env];
+    
+    if (retrieved == nil)
+        retrieved = [[OJNIEnv alloc] initWithJNIEnv:env];
+    
+    pthread_key_t key_t;
+    pthread_key_create(&key_t, onThreadExit);
+    pthread_setspecific(key_t, env);
+    
+    return retrieved;
 }
 
-- (void)detachCurrentThread:(OJNIEnv *)env {
+- (void)detachCurrentThread {
     [self throwIfNotInitialized];
     
-    [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:[env jniEnv]]];
+    (*vm)->DetachCurrentThread(vm);
+}
+
+- (void)detachCurrentThread:(JNIEnv *)env {
+    [self throwIfNotInitialized];
+    
+    [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:env]];
     
     (*vm)->DetachCurrentThread(vm);
 }
@@ -119,15 +148,18 @@
     jint result = (*vm)->GetEnv(vm, &env, JNI_VERSION_1_2);
     
     if (result != JNI_OK) {
+        if (result == JNI_EDETACHED) {
+            return [self attachCurrentThread];
+        }
+        
         return self.mainThreadEnv;
     }
     
+    // TODO should we cache env pointer?
     OJNIEnv *wrapper = [self retrieveObjectFromMemoryMapWithPointer:env];
     
     if (wrapper == nil) {
         wrapper = [[OJNIEnv alloc] initWithJNIEnv:env];
-        
-        [self associatePointer:env withObject:wrapper];
     }
     
     return wrapper;
@@ -136,11 +168,14 @@
 - (void)releaseObject:(jobject)obj {
     [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:obj]];
     
-    OJNIEnv *__env = [self attachCurrentThread];
+    OJNIEnv *__env = [self getEnv];
     
     [__env releaseObject:obj];
-    
-    [self detachCurrentThread:__env];
+}
+
+void onThreadExit (void *environment)
+{
+    [[OJNIJavaVM sharedVM] detachCurrentThread:environment];
 }
 
 @end

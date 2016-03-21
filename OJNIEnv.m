@@ -32,6 +32,8 @@
     
     if (self) {
         env = jniEnv;
+        
+        [[OJNIJavaVM sharedVM] associatePointer:env withObject:self];
     }
     
     return self;
