@@ -8,16 +8,21 @@
 
 #import "OJNIJavaVM.h"
 #import "OJNIEnvironmentException.h"
-
 #import <pthread.h>
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+#import "MapTableSerialAdapter.h"
+#endif
 
 @interface OJNIJavaVM ()
 
 @property BOOL isInitialized;
 
 @property (nonatomic, strong, readwrite) OJNIEnv *mainThreadEnv;
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+@property (nonatomic, strong) MapTableSerialAdapter *memoryMap;
+#else
 @property (nonatomic, strong) NSMapTable *memoryMap;
-
+#endif
 @end
 
 @implementation OJNIJavaVM {
@@ -40,7 +45,7 @@
 
     JavaVMInitArgs *parsed = [self vmArgsFromArray:args];
     
-    jint result = JNI_CreateJavaVM(&vm, &env, parsed);
+    jint result = JNI_CreateJavaVM(&vm, (void**)&env, parsed);
     if (result != JNI_OK) {
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"JavaVM creation failed"];
     } else {
@@ -75,11 +80,15 @@
 }
 
 - (void)initMemoryMap {
-    // TODO: discuss
-    NSPointerFunctionsOptions keyOpts = (NSPointerFunctionsStrongMemory | NSPointerFunctionsObjectPersonality);
-    NSPointerFunctionsOptions valOpts = (NSPointerFunctionsWeakMemory   | NSPointerFunctionsObjectPersonality);
-    
+    // reason for change: NSPointerFunctionsObjectPersonality is not in NSMapTableOptions
+    NSMapTableOptions keyOpts = (NSMapTableStrongMemory | NSMapTableObjectPointerPersonality);
+    NSMapTableOptions valOpts = (NSMapTableWeakMemory   | NSMapTableObjectPointerPersonality);
+
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+    self.memoryMap = [[MapTableSerialAdapter alloc] initWithKeyOptions:keyOpts valueOptions:valOpts capacity:16];
+#else
     self.memoryMap = [[NSMapTable alloc] initWithKeyOptions:keyOpts valueOptions:valOpts capacity:16];
+#endif
 }
 
 - (void)throwIfNotInitialized {
@@ -92,7 +101,7 @@
     [self throwIfNotInitialized];
     
     JNIEnv *env;
-    jint result = (*vm)->AttachCurrentThread(vm, &env, NULL);
+    jint result = (*vm)->AttachCurrentThread(vm, (void**)&env, NULL);
     
     if (result != JNI_OK) {
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"JavaVM thread attaching failed"];
@@ -118,7 +127,6 @@
 
 - (void)detachCurrentThread:(JNIEnv *)env {
     [self throwIfNotInitialized];
-    
     [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:env]];
     
     (*vm)->DetachCurrentThread(vm);
@@ -127,12 +135,12 @@
 - (void)associatePointer:(void *)pointer withObject:(id)object {
     if (pointer == NULL)
         @throw [OJNIEnvironmentException pointerExceptionWithReason:@"Cannot associate NULL pointer with object"];
-    
+
     [self.memoryMap setObject:object forKey:[NSValue valueWithPointer:pointer]];
 }
 
 - (id)retrieveObjectFromMemoryMapWithPointer:(void *)pointer {
-    return [self.memoryMap objectForKey:[NSValue valueWithPointer:pointer]];
+        return [self.memoryMap objectForKey:[NSValue valueWithPointer:pointer]];
 }
 
 - (void)dealloc {
@@ -145,7 +153,7 @@
     
     JNIEnv *env;
     
-    jint result = (*vm)->GetEnv(vm, &env, JNI_VERSION_1_2);
+    jint result = (*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_2);
     
     if (result != JNI_OK) {
         if (result == JNI_EDETACHED) {
@@ -166,7 +174,7 @@
 }
 
 - (void)releaseObject:(jobject)obj {
-    [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:obj]];
+        [self.memoryMap removeObjectForKey:[NSValue valueWithPointer:obj]];
     
     OJNIEnv *__env = [self getEnv];
     

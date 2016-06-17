@@ -16,6 +16,11 @@
 #ifndef OJNIEnvHelper_h
 #define OJNIEnvHelper_h
 
+ /* Use dispatch queue-based serialized access to OJNI class storages.
+  * If this is disabled, OJNI Environment could crash in multithreaded environment.
+  */
+#define OJNI_STORAGE_SERIAL_ADAPTERS 1
+
 #define SET_STATIC_FIELD_DECLARATION(jtype, Type)                            \
 - (void)setStatic##Type##Field:(jobject)obj field:(jfieldID)fid value:(jtype)value
 

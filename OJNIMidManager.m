@@ -18,13 +18,20 @@
 #import "OJNIEnv.h"
 #import "OJNIJavaObject.h"
 #import "OJNIEnvironmentException.h"
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+#import "MutableDictionarySerialAdapter.h"
+#endif
 
 @interface OJNIClassStorage : NSObject {
     @private
     jclass _classPointer;
 }
 
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+@property (nonatomic, strong) MutableDictionarySerialAdapter *mids;
+#else
 @property (nonatomic, strong) NSMutableDictionary *mids;
+#endif
 
 - (void)setClassPointer:(jclass)classPointer;
 - (jclass)classPointer;
@@ -74,8 +81,11 @@
         storage = [[OJNIClassStorage alloc] init];
         
         [storage setClassPointer:[clazz OJNIClass]];
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+        [storage setMids:[[MutableDictionarySerialAdapter alloc] init]];
+#else
         [storage setMids:[[NSMutableDictionary alloc] init]];
-        
+#endif
         [self setObject:storage forKey:key];
     }
     
@@ -87,9 +97,7 @@
                                                   name:method
                                              signature:signature
                                               isStatic:isStatic];
-        
-        [storage.mids setObject:[NSValue valueWithPointer:mid] forKey:methodKey];
-        
+            [storage.mids setObject:[NSValue valueWithPointer:mid] forKey:methodKey];
         return mid;
     }
     
@@ -116,8 +124,12 @@
         storage = [[OJNIClassStorage alloc] init];
         
         [storage setClassPointer:[clazz OJNIClass]];
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+        [storage setMids:[[MutableDictionarySerialAdapter alloc] init]];
+#else
         [storage setMids:[[NSMutableDictionary alloc] init]];
-        
+#endif
+
         [self setObject:storage forKey:key];
     }
     
@@ -149,8 +161,11 @@
         storage = [[OJNIClassStorage alloc] init];
         
         [storage setClassPointer:[[OJNIEnv currentEnv] findClass:name]];
+#ifdef OJNI_STORAGE_SERIAL_ADAPTERS
+        [storage setMids:[[MutableDictionarySerialAdapter alloc] init]];
+#else
         [storage setMids:[[NSMutableDictionary alloc] init]];
-        
+#endif
         [self setObject:storage forKey:name];
     }
     
