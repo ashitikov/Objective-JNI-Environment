@@ -10,8 +10,8 @@
 
 @interface MapTableSerialAdapter : NSObject
 
--(instancetype)initWithKeyOptions:(NSPointerFunctionsOptions)keyOptions valueOptions:(NSPointerFunctionsOptions)valueOptions capacity:(NSUInteger) initialCapacity;
--(id)objectForKey:(id)key;
--(void)setObject:(id)object forKey:(id)key;
--(void)removeObjectForKey:(id)key;
+- (instancetype)initWithKeyOptions:(NSPointerFunctionsOptions)keyOptions valueOptions:(NSPointerFunctionsOptions)valueOptions capacity:(NSUInteger) initialCapacity;
+- (id)objectForKey:(id)key;
+- (void)setObject:(id)object forKey:(id)key;
+- (void)removeObjectForKey:(id)key;
 @end
