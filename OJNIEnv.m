@@ -343,8 +343,11 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     for (int i = 0; i < length; i++) {
         jobject object = (*env)->GetObjectArrayElement(env, array, i);
-        
-        if (currentDimension > 1) {
+        if (!object)
+        {
+            [result addObject:[NSNull null]];
+        }
+        else if (currentDimension > 1) {
             [result addObject:[self innerArrayFromJavaObjectArray:object
                                                         baseClass:baseClass
                                                       classPrefix:classPrefix
@@ -357,7 +360,6 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
         else {
             [result addObject:[OJNIJavaObject retrieveFromJavaObject:object classPrefix:classPrefix]];
         }
-        
         // check, needed?
         (*env)->DeleteLocalRef(env, object);
     }
@@ -375,13 +377,12 @@ SET_STATIC_FIELD_IMPLEMENTATION(jdouble, Double)
     
     if (primitive)
         dimensions--;
-    
-    result = [self innerArrayFromJavaObjectArray:array
-                                       baseClass:baseClass
-                                     classPrefix:classPrefix
-                                     isPrimitive:primitive
-                                currentDimension:dimensions];
-    
+    result = array ? [self innerArrayFromJavaObjectArray:array
+                                               baseClass:baseClass
+                                             classPrefix:classPrefix
+                                             isPrimitive:primitive
+                                        currentDimension:dimensions] : [[NSArray alloc] init];
+
     return result;
 }
 
